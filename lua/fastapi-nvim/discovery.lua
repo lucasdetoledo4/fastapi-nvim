@@ -22,16 +22,15 @@ end
 
 -- Look ahead from line i to find the function name
 local function find_func_name(lines, i)
-  for j = i + 1, math.min(i + 6, #lines) do
+  -- Scan up to 15 lines ahead to handle decorators with many arguments.
+  -- Do not break early: path strings, kwargs and closing parens are all
+  -- valid decorator continuation lines that sit between @decorator and def.
+  for j = i + 1, math.min(i + 15, #lines) do
     local fline = lines[j]
     if fline then
       local name = fline:match("^%s*async%s+def%s+([%w_]+)")
                 or fline:match("^%s*def%s+([%w_]+)")
       if name then return name end
-      -- Stop if we hit a non-decorator, non-empty, non-def line
-      if not fline:match("^%s*$") and not fline:match("^%s*@") then
-        break
-      end
     end
   end
   return "unknown"
