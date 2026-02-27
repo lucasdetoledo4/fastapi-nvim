@@ -23,10 +23,6 @@ local METHOD_BADGE = {
   WEBSOCKET = "WS   ",
 }
 
-local function rel_path(filepath)
-  return vim.fn.fnamemodify(filepath, ":~:.")
-end
-
 -- Collect sorted list of unique methods present in a route list
 local function available_methods(routes)
   local seen, list = {}, {}
