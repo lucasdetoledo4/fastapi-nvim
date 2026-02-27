@@ -116,6 +116,27 @@ function M.setup(opts)
     function() M.refresh() end,
     { desc = "Refresh FastAPI routes cache" }
   )
+  vim.api.nvim_create_user_command("FastAPIDebug", function()
+    local filepath = vim.api.nvim_buf_get_name(0)
+    if not filepath:match("%.py$") then
+      vim.notify("FastAPIDebug: open a .py file first", vim.log.levels.WARN)
+      return
+    end
+    local discovery = require("fastapi-nvim.discovery")
+    local routes = discovery.parse_routes(filepath)
+    if #routes == 0 then
+      vim.notify("FastAPIDebug: no routes found in " .. filepath, vim.log.levels.WARN)
+      return
+    end
+    local lines = { "FastAPIDebug — " .. #routes .. " route(s) in " .. vim.fn.fnamemodify(filepath, ":t"), "" }
+    for _, r in ipairs(routes) do
+      table.insert(lines, string.format(
+        "  line %-4d  %-8s  %-30s  func=%s",
+        r.lnum + 1, r.method, r.path, r.func_name
+      ))
+    end
+    vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO)
+  end, { desc = "Debug: print raw parsed routes for current buffer" })
 
   -- Keymaps
   local km = M._config.keymaps
