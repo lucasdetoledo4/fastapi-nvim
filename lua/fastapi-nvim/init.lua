@@ -126,6 +126,23 @@ function M.setup(opts)
     vim.keymap.set("n", km.refresh, M.refresh, { desc = "FastAPI: refresh routes" })
   end
 
+  -- Register descriptions with which-key if available (supports v2 and v3)
+  local ok_wk, wk = pcall(require, "which-key")
+  if ok_wk then
+    local specs = {}
+    if km.routes  then table.insert(specs, { km.routes,  desc = "FastAPI: browse routes" }) end
+    if km.refresh then table.insert(specs, { km.refresh, desc = "FastAPI: refresh routes" }) end
+    if #specs > 0 then
+      if wk.add then
+        wk.add(specs)           -- which-key v3+
+      else
+        local reg = {}
+        for _, s in ipairs(specs) do reg[s[1]] = { s.desc } end
+        wk.register(reg)        -- which-key v2
+      end
+    end
+  end
+
   -- Virtual text: render on Python buffer enter / save
   if M._config.virtual_text then
     local aug = vim.api.nvim_create_augroup("FastAPINvim", { clear = true })
