@@ -9,11 +9,15 @@ Browse, search, and navigate all your FastAPI path operations without leaving Ne
 - **Route picker** — fuzzy-search all routes across your project via Telescope
 - **Method filter** — narrow results to a specific HTTP method with `<C-f>`
 - **Virtual text** — each `@app.get(...)` decorator is annotated inline with the method and path
+- **Prefix resolution** — resolves `APIRouter(prefix=...)` and `include_router(..., prefix=...)` to show full route paths
+- **Multi-line decorators** — correctly parses decorators that span multiple lines
+- **which-key integration** — keymaps registered automatically (supports v2 and v3)
+- **Health check** — run `:checkhealth fastapi-nvim` to diagnose setup issues
 - **Zero config** — auto-discovers routes by scanning for FastAPI decorators
 
 ## Requirements
 
-- Neovim >= 0.9
+- Neovim >= 0.10
 - [telescope.nvim](https://github.com/nvim-telescope/telescope.nvim)
 
 ## Installation
@@ -79,12 +83,29 @@ require("fastapi-nvim").setup({
 
 ## How it works
 
-The plugin scans all `.py` files in your project (excluding `.venv`, `__pycache__`, `.git`, etc.) and detects FastAPI route decorators:
+The plugin scans all `.py` files in your project (excluding `.venv`, `__pycache__`, `.git`, etc.) and detects FastAPI route decorators, including multi-line ones:
 
 ```python
-@app.get("/items/{id}")          # detected
-@router.post("/users")           # detected
-@api.api_route("/ping", methods=["GET", "HEAD"])  # detected
+@app.get("/items/{id}")                           # single-line
+@router.post("/users")                            # router-scoped
+@api.api_route("/ping", methods=["GET", "HEAD"])  # api_route
+
+@app.put(                                         # multi-line
+    "/items/{id}",
+    response_model=Item,
+)
+```
+
+Prefixes from `APIRouter` and `include_router` are resolved automatically:
+
+```python
+# items.py
+router = APIRouter(prefix="/items")
+
+@router.get("/{id}")   # shown as /api/v1/items/{id}
+
+# main.py
+app.include_router(router, prefix="/api/v1")
 ```
 
 Results are cached for 15 seconds and invalidated on `:FastAPIRefresh`.
