@@ -37,21 +37,50 @@ local function find_func_name(lines, i)
   return "unknown"
 end
 
+-- Scan ahead from line i+1 to find the first string literal (route path)
+-- used when the decorator spans multiple lines
+local function find_path_multiline(lines, i)
+  local n = #lines
+  for j = i + 1, math.min(i + 10, n) do
+    local l = lines[j]
+    if l then
+      local p = l:match('^%s*"([^"]*)"') or l:match("^%s*'([^']*)'")
+      if p then return p end
+      -- stop if we hit the closing paren or a keyword argument before the path
+      if l:match("^%s*%)") or l:match("^%s*[%w_]+=") then break end
+    end
+  end
+  return nil
+end
+
 -- Parse a single Python file and return all route definitions
 function M.parse_routes(filepath)
   local ok, lines = pcall(vim.fn.readfile, filepath)
   if not ok or not lines then return {} end
 
   local routes = {}
+  local n = #lines
 
-  for i, line in ipairs(lines) do
+  for i = 1, n do
+    local line = lines[i]
+
     -- Match @obj.METHOD("path") or @obj.METHOD('path')
+    -- Handles both single-line and multi-line decorators
     for _, method in ipairs(HTTP_METHODS) do
       local owner, path =
         line:match("^%s*@([%w_]+)%." .. method .. '%s*%("([^"]*)"')
       if not owner then
         owner, path =
           line:match("^%s*@([%w_]+)%." .. method .. "%s*%('([^']*)'")
+      end
+
+      -- Multi-line: @obj.method( with path on the next lines
+      if not owner then
+        owner = line:match("^%s*@([%w_]+)%." .. method .. "%s*%(")
+        if owner then
+          path = find_path_multiline(lines, i)
+          if not path then owner = nil end
+        end
       end
 
       if owner and path then
@@ -68,11 +97,19 @@ function M.parse_routes(filepath)
     end
 
     -- Match @obj.api_route("path", methods=["GET", "POST", ...])
+    -- Also supports multi-line
     local owner, path =
       line:match('^%s*@([%w_]+)%.api_route%s*%("([^"]*)"')
     if not owner then
       owner, path =
         line:match("^%s*@([%w_]+)%.api_route%s*%('([^']*)'")
+    end
+    if not owner then
+      owner = line:match("^%s*@([%w_]+)%.api_route%s*%(")
+      if owner then
+        path = find_path_multiline(lines, i)
+        if not path then owner = nil end
+      end
     end
 
     if owner and path then
