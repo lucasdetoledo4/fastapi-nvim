@@ -155,14 +155,98 @@ function M.find_python_files(root)
   return files
 end
 
+-- Build a map of router variable name -> accumulated prefix by scanning all files.
+--
+-- Handles two sources of prefix information:
+--   1. router = APIRouter(prefix="/base")
+--   2. app.include_router(router, prefix="/extra")
+--
+-- When both are present the prefixes are combined: include_prefix + router_prefix.
+local function build_prefix_map(files)
+  -- Pass 1: collect APIRouter(prefix=...) definitions
+  local router_own = {}   -- var -> its own constructor prefix
+
+  -- Pass 2: collect include_router(var, prefix=...) calls
+  local include_prefix = {}  -- var -> prefix given at include time
+
+  for _, filepath in ipairs(files) do
+    local ok, lines = pcall(vim.fn.readfile, filepath)
+    if ok and lines then
+      for _, line in ipairs(lines) do
+        -- var = APIRouter(prefix="...")  or  APIRouter(prefix='...')
+        local var, pre =
+          line:match('([%w_]+)%s*=%s*APIRouter%s*%b()') and
+          line:match('([%w_]+)%s*=.*prefix%s*=%s*"([^"]*)"')
+        if not var then
+          var, pre = line:match("([%w_]+)%s*=.*prefix%s*=%s*'([^']*)'")
+        end
+        if var and pre then
+          router_own[var] = pre
+        end
+
+        -- include_router(var, prefix="...")
+        local ivar, ipre =
+          line:match('include_router%s*%(%s*([%w_.]+)%s*,.-prefix%s*=%s*"([^"]*)"')
+        if not ivar then
+          ivar, ipre =
+            line:match("include_router%s*%(%s*([%w_.]+)%s*,.-prefix%s*=%s*'([^']*)'")
+        end
+        -- strip dotted import prefix (e.g. "items.router" -> "router")
+        if ivar then
+          ivar = ivar:match("%.([%w_]+)$") or ivar
+          include_prefix[ivar] = ipre
+        end
+      end
+    end
+  end
+
+  -- Combine: full prefix = include_prefix + router's own prefix
+  local prefix_map = {}
+  local all_vars = {}
+  for v in pairs(router_own)    do all_vars[v] = true end
+  for v in pairs(include_prefix) do all_vars[v] = true end
+
+  for var in pairs(all_vars) do
+    local a = include_prefix[var] or ""
+    local b = router_own[var]     or ""
+    -- Avoid double slashes
+    if a ~= "" and b ~= "" and b:sub(1, 1) == "/" then
+      prefix_map[var] = a .. b
+    else
+      prefix_map[var] = a .. b
+    end
+  end
+
+  return prefix_map
+end
+
+-- Prepend a prefix to a path, avoiding double slashes
+local function join_path(prefix, path)
+  if prefix == "" then return path end
+  if path == "" or path == "/" then return prefix end
+  if prefix:sub(-1) == "/" and path:sub(1, 1) == "/" then
+    return prefix:sub(1, -2) .. path
+  end
+  if prefix:sub(-1) ~= "/" and path:sub(1, 1) ~= "/" then
+    return prefix .. "/" .. path
+  end
+  return prefix .. path
+end
+
 -- Discover all routes across the entire project
 function M.discover_routes(root)
   local files = M.find_python_files(root)
   local all_routes = {}
 
+  local prefix_map = build_prefix_map(files)
+
   for _, filepath in ipairs(files) do
     local routes = M.parse_routes(filepath)
     for _, route in ipairs(routes) do
+      local prefix = prefix_map[route.owner]
+      if prefix and prefix ~= "" then
+        route.path = join_path(prefix, route.path)
+      end
       table.insert(all_routes, route)
     end
   end
