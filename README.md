@@ -26,7 +26,7 @@ Browse, search, and navigate all your FastAPI path operations without leaving Ne
 
 ```lua
 {
-  "your-username/fastapi-nvim",
+  "lucasdetoledo4/fastapi-nvim",
   ft           = "python",
   dependencies = { "nvim-telescope/telescope.nvim" },
   keys = {
@@ -43,7 +43,7 @@ Browse, search, and navigate all your FastAPI path operations without leaving Ne
 
 ```lua
 use {
-  "your-username/fastapi-nvim",
+  "lucasdetoledo4/fastapi-nvim",
   requires = { "nvim-telescope/telescope.nvim" },
   config = function()
     require("fastapi-nvim").setup()
@@ -58,6 +58,7 @@ use {
 | `<leader>fa` / `:FastAPIRoutes` | Open the route picker |
 | `<leader>fA` / `:FastAPIRefresh` | Re-scan the project and refresh cache |
 | `<C-f>` *(inside picker)* | Filter routes by HTTP method |
+| `:FastAPIDebug` | Print raw parsed routes for the current buffer (useful for reporting issues) |
 
 The virtual text is rendered automatically when you open any `.py` file.
 
