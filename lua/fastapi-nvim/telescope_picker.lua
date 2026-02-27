@@ -73,7 +73,7 @@ local function open_picker(all_routes, active_filter)
     local badge = METHOD_BADGE[r.method] or r.method
     local hl    = METHOD_HL[r.method] or "Normal"
     -- Show owner as a dim prefix so the full path is immediately identifiable
-    local path_display = r.owner and (r.owner .. " " .. r.path) or r.path
+    local path_display = r.owner and (r.owner .. r.path) or r.path
     return displayer({
       { badge,          hl },
       { path_display,   "TelescopeResultsComment" },
